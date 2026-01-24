@@ -87,6 +87,13 @@ runs:
         git clone --depth=${{ inputs.depth }} --branch=${{ inputs.kernel-branch }} ${{ inputs.kernel-url }} $HOME/kernel/${{ inputs.arch }}
         echo "Kernel source cloned to 'kernel-source' directory."
 
+        echo "Extracting kernel version information..."
+        echo "KERNEL_VERSION=$(grep -E '^VERSION =' "$HOME/kernel/${{ inputs.arch }}/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
+        echo "KERNEL_PATCHLEVEL=$(grep -E '^PATCHLEVEL =' "$HOME/kernel/${{ inputs.arch }}/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
+        echo "KERNEL_SUBLEVEL=$(grep -E '^SUBLEVEL =' "$HOME/kernel/${{ inputs.arch }}/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
+        echo "KERNEL_EXTRAVERSION=$(grep -E '^EXTRAVERSION =' "$HOME/kernel/${{ inputs.arch }}/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
+        echo "Kernel Version: "$KERNEL_VERSION.$KERNEL_PATCHLEVEL.$KERNEL_SUBLEVEL""$KERNEL_EXTRAVERSION""
+
     - name: "Building Kernel"
       shell: bash
       run: |
