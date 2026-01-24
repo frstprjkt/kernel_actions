@@ -20,6 +20,16 @@ inputs:
   extra-args:
     required: false
 
+  ksu:
+    required: false
+    default: "false"
+  ksu-url:
+    required: false
+    default: "https://github.com/tiann/KernelSU"
+  ksu-version:
+    required: false
+    default: "main"
+
   aosp-clang:
     required: false
     default: "true"
@@ -94,11 +104,31 @@ runs:
         echo "KERNEL_EXTRAVERSION=$(grep -E '^EXTRAVERSION =' "$HOME/kernel/${{ inputs.arch }}/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
         echo "Kernel Version: "$KERNEL_VERSION.$KERNEL_PATCHLEVEL.$KERNEL_SUBLEVEL""$KERNEL_EXTRAVERSION""
 
+    - name: "Configure KernelSU"
+      if: ${{ inputs.ksu == 'true' }}
+      shell: bash
+      run: |
+        echo "Integrating KernelSU into the kernel source tree..."
+        cd $HOME/kernel/${{ inputs.arch }}
+        curl -LSs "${{ inputs.ksu-url }}/raw/${{ inputs.ksu-version }}/kernel/setup.sh" | bash -s ${{ inputs.ksu-version }}
+        cd ../../..
+        echo "KernelSU integrated into the kernel source."
+        if [ $KERNEL_VERSION -lt 5 ]; then
+          echo "Enabling KernelSU hooks..."
+          echo "CONFIG_KSU_TAMPER_SYSCALL_TABLE=y" > $HOME/kernel/${{ inputs.arch }}/arch/${{ inputs.arch }}/configs/kernelsu.config
+        else
+          echo "CONFIG_KSU_TAMPER_SYSCALL_TABLE only supported on kernels < 5.x. Expect your have manual hooks integration."
+        fi
+
     - name: "Building Kernel"
       shell: bash
       run: |
         set -e
         KERNEL_DIR="$HOME/kernel/${{ inputs.arch }}"
+        KERNEL_DEFCONFIG="${{ inputs.defconfig }}"
+        if [ "${{ inputs.ksu }}" = "true" ]; then
+          KERNEL_DEFCONFIG+=" kernelsu.config"
+        fi
 
         if [ "${{ inputs.aosp-clang }}" = "true" ]; then
           echo "AOSP Clang path: $HOME/toolchains/clang-${{ inputs.aosp-clang-version }}/bin"
@@ -112,7 +142,7 @@ runs:
 
         cd $KERNEL_DIR
         echo "Starting kernel build for architecture: ${{ inputs.arch }} with defconfig: $KERNEL_DEFCONFIG"
-        make -j$(nproc) ARCH=${{ inputs.arch }} O=out ${{ inputs.defconfig }} ${{ inputs.extra-args }} all CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- CLANG_TRIPLE=aarch64-linux-gnu-
+        make -j$(nproc) ARCH=${{ inputs.arch }} O=out $KERNEL_DEFCONFIG ${{ inputs.extra-args }} all CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- CLANG_TRIPLE=aarch64-linux-gnu-
         echo "Kernel build completed."
     
     - name: "Packaging Kernel"
