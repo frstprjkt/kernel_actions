@@ -1,0 +1,14 @@
+name: "Configure KernelSU for kernel"
+description: "Downloads and configures KernelSU in the kernel source tree."
+author: "frstprjkt"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Integrate KernelSU into kernel source"
+      shell: bash
+      run: |
+        echo "Integrating KernelSU into the kernel source tree..."
+        curl -LSs "${{ inputs.ksu-url }}/raw/${{ inputs.ksu-version }}/kernel/setup.sh" | bash -s ${{ inputs.ksu-version }}
+        echo CONFIG_KSU_TAMPER_SYSCALL_TABLE=y >> $HOME/kernel/${{ inputs.arch }}/arch/${{ inputs.arch }}/configs/kernelsu.config
+        echo "KernelSU integrated into the kernel source."

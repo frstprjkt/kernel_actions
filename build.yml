@@ -1,0 +1,21 @@
+name: "Build Android Kernel"
+description: "Builds the Android kernel"
+author: "frstprjkt"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build kernel source
+      shell: bash
+      run: |
+        set -e
+        KERNEL_DIR="$HOME/kernel/${{ inputs.arch }}"
+        KERNEL_DEFCONFIG="${{ inputs.defconfig }}"
+        if [ "${{ inputs.ksu }}" = "true" ]; then
+          KERNEL_DEFCONFIG+="kernelsu.config"
+        fi
+
+        cd $KERNEL_DIR
+        echo "Starting kernel build for architecture: ${{ inputs.arch }} with defconfig: $KERNEL_DEFCONFIG"
+        make -j$(nproc) ARCH=${{ inputs.arch }} O=out $KERNEL_DEFCONFIG ${{ inputs.extra-args }} all CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- CLANG_TRIPLE=aarch64-linux-gnu-
+        echo "Kernel build completed."

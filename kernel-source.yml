@@ -1,0 +1,13 @@
+name: "Download kernel source code"
+description: "Downloads the specified kernel source code from a Git repository."
+author: "frstprjkt"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Clone kernel source"
+      shell: bash
+      run: |
+        echo "Cloning kernel source from ${{ inputs.kernel-url }} (branch: ${{ inputs.kernel-branch }}, depth: ${{ inputs.depth }})..."
+        git clone --depth=${{ inputs.depth }} --branch=${{ inputs.kernel-branch }} ${{ inputs.kernel-url }} $HOME/kernel/${{ inputs.arch }}
+        echo "Kernel source cloned to 'kernel-source' directory."

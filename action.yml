@@ -1,0 +1,105 @@
+name: "Android Kernel Builder"
+description: "An action to build Android kernel using GitHub Actions"
+author: "frstprjkt"
+
+inputs:
+  kernel-url:
+    required: true
+    default: ""
+  kernel-branch:
+    required: false
+    default: "master"
+  depth:
+    required: false
+    default: "1"
+
+  arch:
+    required: false
+    default: "arm64"
+  defconfig:
+    required: true
+    default: ""
+  extra-args:
+    required: false
+    default: ""
+
+  ksu:
+    required: false
+    default: "false"
+  ksu-url:
+    required: false
+    default: "https://github.com/tiann/KernelSU"
+  ksu-version:
+    required: false
+    default: "main"
+
+  aosp-clang:
+    required: false
+    default: "true"
+  aosp-clang-version:
+    required: false
+    default: "r563880c"
+  aosp-gcc:
+    required: false
+    default: "false"
+
+  anykernel3-url:
+    required: false
+    default: ""
+  anykernel3-branch:
+    required: false
+    default: "master"
+  package-name:
+    required: false
+    default: "anykernel3.zip"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install build dependencies"
+      uses: git/frstprjkt/kernel_actions/dependencies.yml@main
+
+    - name: "Downloading toolchains"
+      uses: git/frstprjkt/kernel_actions/toolchains.yml@main
+      with:
+        aosp-clang: ${{ inputs.aosp-clang }}
+        aosp-clang-version: ${{ inputs.aosp-clang-version }}
+        aosp-gcc: ${{ inputs.aosp-gcc }}
+    
+    - name: "Downloading kernel source"
+      uses: git/frstprjkt/kernel_actions/kernel-source.yml@main
+      with:
+        kernel-url: ${{ inputs.kernel-url }}
+        kernel-branch: ${{ inputs.kernel-branch }}
+        depth: ${{ inputs.depth }}
+        arch: ${{ inputs.arch }}
+
+    - name: "Configure KernelSU"
+      if: ${{ inputs.ksu == 'true' }}
+      uses: git/frstprjkt/kernel_actions/ksu.yml@main
+      with:
+        ksu-url: ${{ inputs.ksu-url }}
+        ksu-version: ${{ inputs.ksu-version }}
+
+    - name: "Building Kernel"
+      uses: git/frstprjkt/kernel_actions/build.yml@main
+      with:
+        arch: ${{ inputs.arch }}
+        defconfig: ${{ inputs.defconfig }}
+        extra-args: ${{ inputs.extra-args }}
+    
+    - name: "Packaging Kernel"
+      if: ${{ inputs.anykernel3-url == 'true' }}
+      uses: git/frstprjkt/kernel_actions/package.yml@main
+      with:
+        anykernel3-url: ${{ inputs.anykernel3-url }}
+        anykernel3-branch: ${{ inputs.anykernel3-branch }}
+        package-name: ${{ inputs.package-name }}
+    
+    - name: "Upload Kernel"
+      if: ${{ inputs.anykernel3-url == 'true' }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ inputs.package-name }}
+        path: $HOME/${{ inputs.package-name }}
+        if-no-files-found: error
