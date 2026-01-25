@@ -59,7 +59,7 @@ runs:
       shell: bash
       run: |
         echo "KERNEL_DIR=$HOME/kernel/${{ inputs.arch }}" >> $GITHUB_ENV
-        echo "OUTPUT_ZIP=$HOME/kernel/${{ inputs.package-name }}" >> $GITHUB_ENV
+        echo "OUTPUT_ZIP=$HOME/kernel/${{ inputs.package-name }}.zip" >> $GITHUB_ENV
         sudo apt-get update
         sudo apt-get install -y \
           binutils git make bc bison openssl curl zip kmod cpio flex libelf-dev \
