@@ -84,8 +84,8 @@ runs:
       shell: bash
       run: |
         echo "Downloading AOSP GCC toolchain..."
-        GCC64_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/android12L-release.tar.gz
-        GCC32_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/heads/android12L-release.tar.gz"
+        GCC64_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
+        GCC32_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
         aria2c -x 16 -s 16 -k 1M $GCC64_URL -o aarch64-gcc.tar.gz
         mkdir -p $HOME/toolchains/gcc-aarch64
         tar -xzf aarch64-gcc.tar.gz -C $HOME/toolchains/gcc-aarch64
@@ -99,7 +99,7 @@ runs:
       run: |
         echo "Cloning kernel source from ${{ inputs.kernel-url }} (branch: ${{ inputs.kernel-branch }}, depth: ${{ inputs.depth }})..."
         git clone --depth=${{ inputs.depth }} --branch=${{ inputs.kernel-branch }} ${{ inputs.kernel-url }} $KERNEL_DIR
-        echo "Kernel source cloned to 'kernel-source' directory."
+        echo "Kernel source cloned to '$KERNEL_DIR' directory."
 
         echo "Extracting kernel version information..."
         echo "KERNEL_VERSION=$(grep -E '^VERSION =' "$KERNEL_DIR/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
