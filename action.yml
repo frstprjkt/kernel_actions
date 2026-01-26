@@ -148,6 +148,8 @@ runs:
         fi
 
         cd $KERNEL_DIR
+        mkdir out
+        echo "${GITHUB_RUN_NUMBER}" > out/.version
         echo "Starting kernel build for architecture: ${{ inputs.arch }} with defconfig: $KERNEL_DEFCONFIG"
         make -j$(nproc) ARCH=${{ inputs.arch }} O=out $KERNEL_DEFCONFIG ${{ inputs.extra-args }} all CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- CLANG_TRIPLE=aarch64-linux-gnu-
         echo "Kernel build completed."
