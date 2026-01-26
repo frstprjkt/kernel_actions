@@ -154,11 +154,16 @@ runs:
           BUILD_CLANG_TRIPLE="arm-linux-gnueabi-"
         fi
 
+        if [ "${{ inputs.aosp-gcc }}" = "true" ]; then
+          BUILD_CROSS_COMPILE=aarch64-linux-android-
+          BUILD_CROSS_COMPILE_ARM32=arm-linux-androideabi-
+        fi
+
         cd $KERNEL_DIR
         mkdir out
         echo "${GITHUB_RUN_NUMBER}" > out/.version
         echo "Starting kernel build for architecture: ${{ inputs.arch }} with defconfig: $KERNEL_DEFCONFIG"
-        make -j$(nproc) ARCH=${{ inputs.arch }} O=out $KERNEL_DEFCONFIG ${{ inputs.extra-args }} all CROSS_COMPILE=aarch64-linux-android- CROSS_COMPILE_ARM32=arm-linux-androideabi- CLANG_TRIPLE=$BUILD_CLANG_TRIPLE
+        make -j$(nproc) ARCH=${{ inputs.arch }} O=out $KERNEL_DEFCONFIG ${{ inputs.extra-args }} all CROSS_COMPILE=$BUILD_CROSS_COMPILE CROSS_COMPILE_ARM32=$BUILD_CROSS_COMPILE_ARM32 CLANG_TRIPLE=$BUILD_CLANG_TRIPLE
         echo "Kernel build completed."
     
     - name: "Packaging Kernel"
