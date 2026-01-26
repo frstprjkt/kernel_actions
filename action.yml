@@ -84,8 +84,8 @@ runs:
       shell: bash
       run: |
         echo "Downloading AOSP GCC toolchain..."
-        GCC64_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
-        GCC32_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
+        GCC64_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/android-msm-redbull-4.19-android14-qpr3.tar.gz"
+        GCC32_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/heads/android-msm-redbull-4.19-android14-qpr3.tar.gz"
         aria2c -x 16 -s 16 -k 1M $GCC64_URL -o aarch64-gcc.tar.gz
         mkdir -p $HOME/toolchains/gcc-aarch64
         tar -xzf aarch64-gcc.tar.gz -C $HOME/toolchains/gcc-aarch64
