@@ -106,7 +106,6 @@ runs:
         echo "KERNEL_PATCHLEVEL=$(grep -E '^PATCHLEVEL =' "$KERNEL_DIR/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
         echo "KERNEL_SUBLEVEL=$(grep -E '^SUBLEVEL =' "$KERNEL_DIR/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
         echo "KERNEL_EXTRAVERSION=$(grep -E '^EXTRAVERSION =' "$KERNEL_DIR/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
-        echo "Kernel Version: "$KERNEL_VERSION.$KERNEL_PATCHLEVEL.$KERNEL_SUBLEVEL""$KERNEL_EXTRAVERSION""
 
     - name: "Configure KernelSU"
       if: ${{ inputs.ksu == 'true' }}
@@ -128,6 +127,8 @@ runs:
       shell: bash
       run: |
         set -e
+        echo "Kernel Version: "$KERNEL_VERSION.$KERNEL_PATCHLEVEL.$KERNEL_SUBLEVEL""$KERNEL_EXTRAVERSION""
+
         KERNEL_DEFCONFIG="${{ inputs.defconfig }}"
         if [ "${{ inputs.ksu }}" = "true" ]; then
           KERNEL_DEFCONFIG+=" kernelsu.config"
