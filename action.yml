@@ -19,6 +19,8 @@ inputs:
     required: true
   extra-args:
     required: false
+  build-number:
+    required: false
 
   ksu:
     required: false
@@ -129,6 +131,10 @@ runs:
         KERNEL_DEFCONFIG="${{ inputs.defconfig }}"
         if [ "${{ inputs.ksu }}" = "true" ]; then
           KERNEL_DEFCONFIG+=" kernelsu.config"
+        fi
+
+        if [[ -n "${{ inputs.build-number }}" ]]; then
+          BUILD_NUMBER="${{ inputs.build-number }}"
         fi
 
         if [ "${{ inputs.aosp-clang }}" = "true" ]; then
