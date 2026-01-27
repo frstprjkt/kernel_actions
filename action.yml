@@ -135,7 +135,7 @@ runs:
         fi
 
         if [[ -n "${{ inputs.build-number }}" ]]; then
-          BUILD_NUMBER="${{ inputs.build-number }}"
+          export BUILD_NUMBER="${{ inputs.build-number }}"
         fi
 
         if [ "${{ inputs.aosp-clang }}" = "true" ]; then
