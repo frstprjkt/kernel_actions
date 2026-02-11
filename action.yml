@@ -54,6 +54,20 @@ inputs:
     required: false
     default: "anykernel3.zip"
 
+  artifact-upload:
+    required: false
+    default: "false"
+
+  telegram-upload:
+    required: false
+    default: "false"
+  telegram-bot-token:
+    required: false
+  telegram-chat-id:
+    required: false
+  telegram-caption:
+    required: false
+
 runs:
   using: "composite"
   steps:
@@ -176,6 +190,10 @@ runs:
         echo "Cloning AnyKernel3 from ${{ inputs.anykernel3-url }} (branch: ${{ inputs.anykernel3-branch }})..."
         git clone --depth=1 --branch=${{ inputs.anykernel3-branch }} ${{ inputs.anykernel3-url }} $ANYKERNEL_DIR
 
+        echo "Clean AnyKernel3 directory..."
+        rm -rf $ANYKERNEL_DIR/.git $ANYKERNEL_DIR/*.github
+        find . -type f -name "placeholder" -exec sh -c 'rm -rf "$(dirname "$1")"' _ {} \;
+
         echo "Copying built kernel to AnyKernel3 directory..."
         cp $KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/Image.gz $ANYKERNEL_DIR/.
         # Add other necessary files like dtb, dtbo if available
@@ -186,13 +204,28 @@ runs:
           cp $KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/dtbo.img $ANYKERNEL_DIR/.
         fi
 
+        if [[ "${{ inputs.telegram-upload }}" == "true" ]]; then
+          zip -r9q $HOME/${{ env.PACKAGE_NAME }}.zip $ANYKERNEL_DIR/*
+          echo "OUTPUT_FILE=$HOME/${{ env.PACKAGE_NAME }}.zip" >> $GITHUB_ENV
+        else
+          echo "OUTPUT_DIR=$ANYKERNEL_DIR" >> $GITHUB_ENV
+        fi
+
         echo "Kernel packaged successfully."
-        echo "OUTPUT_DIR=$ANYKERNEL_DIR" >> $GITHUB_ENV
     
-    - name: "Upload Kernel"
-      if: ${{ inputs.anykernel3 == 'true' }}
+    - name: "Upload Kernel to Artifacts"
+      if: ${{ inputs.artifact-upload == 'true' && inputs.anykernel3 == 'true' }}
       uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGE_NAME }}
         path: ${{ env.OUTPUT_DIR }}
         if-no-files-found: error
+
+    - name: "Upload Kernel to Telegram"
+      if: ${{ inputs.telegram-upload == 'true' && inputs.anykernel3 == 'true' }}
+      shell: bash
+      run: |
+        curl -v -F "chat_id=${{ inputs.telegram-chat-id }}" \
+          -F document=@${{ env.OUTPUT_FILE }} \
+          -F caption="${{ inputs.telegram-caption }}" \
+          https://api.telegram.org/bot${{ inputs.telegram-bot-token }}/sendDocument
