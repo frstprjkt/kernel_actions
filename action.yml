@@ -207,11 +207,11 @@ runs:
         if [[ "${{ inputs.telegram-upload }}" == "true" ]]; then
           zip -r9q $HOME/${{ env.PACKAGE_NAME }}.zip $ANYKERNEL_DIR/*
           echo "OUTPUT_FILE=$HOME/${{ env.PACKAGE_NAME }}.zip" >> $GITHUB_ENV
-        else
+          echo "Kernel packaged successfully. Output file: $HOME/${{ env.PACKAGE_NAME }}.zip"
+        elif [[ "${{ inputs.artifact-upload }}" == "true" ]]; then
           echo "OUTPUT_DIR=$ANYKERNEL_DIR" >> $GITHUB_ENV
+          echo "Kernel packaged successfully. Output directory: $ANYKERNEL_DIR"
         fi
-
-        echo "Kernel packaged successfully."
     
     - name: "Upload Kernel to Artifacts"
       if: ${{ inputs.artifact-upload == 'true' && inputs.anykernel3 == 'true' }}
