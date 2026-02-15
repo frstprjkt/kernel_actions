@@ -205,7 +205,8 @@ runs:
         fi
 
         if [[ "${{ inputs.telegram-upload }}" == "true" ]]; then
-          zip -r9q $HOME/${{ env.PACKAGE_NAME }}.zip $ANYKERNEL_DIR/*
+          cd $ANYKERNEL_DIR
+          zip -r9q $HOME/${{ env.PACKAGE_NAME }}.zip .
           echo "OUTPUT_FILE=$HOME/${{ env.PACKAGE_NAME }}.zip" >> $GITHUB_ENV
           echo "Kernel packaged successfully. Output file: $HOME/${{ env.PACKAGE_NAME }}.zip"
         elif [[ "${{ inputs.artifact-upload }}" == "true" ]]; then
