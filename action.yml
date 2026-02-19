@@ -54,6 +54,12 @@ inputs:
     required: false
     default: "anykernel3.zip"
 
+  bootimg:
+    required: false
+    default: "false"
+  bootimg-url:
+    required: false
+
   artifact-upload:
     required: false
     default: "false"
@@ -75,7 +81,11 @@ runs:
       shell: bash
       run: |
         echo "KERNEL_DIR=$HOME/kernel/${{ inputs.arch }}" >> $GITHUB_ENV
-        echo "PACKAGE_NAME=${{ inputs.package-name }}" >> $GITHUB_ENV
+        if [[ "${{ inputs.bootimg }}" == "true" ]]; then
+          echo "PACKAGE_NAME=image-${{ inputs.package-name }}" >> $GITHUB_ENV
+        else
+          echo "PACKAGE_NAME=${{ inputs.package-name }}" >> $GITHUB_ENV
+        fi
         sudo apt-get update
         sudo apt-get install -y \
           binutils git make bc bison openssl curl zip kmod cpio flex libelf-dev \
@@ -180,7 +190,7 @@ runs:
         make -j$(nproc) ARCH=${{ inputs.arch }} O=out $KERNEL_DEFCONFIG ${{ inputs.extra-args }} all CROSS_COMPILE=$BUILD_CROSS_COMPILE CROSS_COMPILE_ARM32=$BUILD_CROSS_COMPILE_ARM32 CLANG_TRIPLE=$BUILD_CLANG_TRIPLE
         echo "Kernel build completed."
     
-    - name: "Packaging Kernel"
+    - name: "Packaging Kernel with AnyKernel3"
       if: ${{ inputs.anykernel3 == 'true' }}
       shell: bash
       run: |
@@ -213,9 +223,55 @@ runs:
           echo "OUTPUT_DIR=$ANYKERNEL_DIR" >> $GITHUB_ENV
           echo "Kernel packaged successfully. Output directory: $ANYKERNEL_DIR"
         fi
-    
+
+    - name: "Packaging Kernel with boot image"
+      if: ${{ inputs.bootimg == 'true' }}
+      shell: bash
+      run: |
+        set -e
+
+        echo "Downloading required tools for boot image packaging..."
+        mkdir $HOME/working
+        cd $HOME/working
+        wget https://raw.githubusercontent.com/frstprjkt/kernel_actions/refs/heads/main/bin/magiskboot -O magiskboot
+        chmod +x magiskboot
+
+        echo "Unpacking stock boot image..."
+        wget ${{ inputs.bootimg-url }} -O boot.orig.img
+        ./magiskboot unpack boot.orig.img
+
+        if [ -f "$KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/Image" ]; then
+          echo "Replacing kernel in the unpacked boot image..."
+          cp $KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/Image kernel
+        fi
+
+        if [ -f "$KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/dtb" ]; then
+          echo "Replacing dtb in the unpacked boot image..."
+          cp $KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/dtb dtb
+        fi
+
+        echo "Repacking boot image with the new kernel..."
+        mkdir out_img
+        ./magiskboot repack boot.orig.img out_img/boot.img
+        echo "Boot image repackaged successfully."
+
+        if [ -f "$KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/dtbo.img" ]; then
+          echo "Adding dtbo to the output directory..."
+          cp $KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/dtbo.img out_img/dtbo.img
+        fi
+
+        if [[ "${{ inputs.telegram-upload }}" == "true" ]]; then
+          cd out_img
+          zip -r9q $HOME/${{ env.PACKAGE_NAME }}.zip .
+          echo "OUTPUT_FILE=$HOME/${{ env.PACKAGE_NAME }}.zip" >> $GITHUB_ENV
+          echo "Kernel packaged successfully. Output file: $HOME/${{ env.PACKAGE_NAME }}.zip"
+        elif [[ "${{ inputs.artifact-upload }}" == "true" ]]; then
+          echo "OUTPUT_DIR=$HOME/working/out_img" >> $GITHUB_ENV
+          echo "Kernel packaged successfully. Output directory: $HOME/working/out_img"
+        fi
+
     - name: "Upload Kernel to Artifacts"
-      if: ${{ inputs.artifact-upload == 'true' && inputs.anykernel3 == 'true' }}
+      if: ${{ inputs.artifact-upload == 'true' }}
       uses: actions/upload-artifact@v6
       with:
         name: ${{ env.PACKAGE_NAME }}
@@ -223,7 +279,7 @@ runs:
         if-no-files-found: error
 
     - name: "Upload Kernel to Telegram"
-      if: ${{ inputs.telegram-upload == 'true' && inputs.anykernel3 == 'true' }}
+      if: ${{ inputs.telegram-upload == 'true' }}
       shell: bash
       run: |
         curl -v -F "chat_id=${{ inputs.telegram-chat-id }}" \
