@@ -77,6 +77,16 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Send build start notification to Telegram"
+      if: ${{ inputs.telegram-upload == 'true' }}
+      shell: bash
+      run: |
+        echo "Sending build start notification to Telegram..."
+        NOTIFIER_MSG="${GITHUB_REPOSITORY}/${GITHUB_WORKFLOW} triggered by ${GITHUB_TRIGGERING_ACTOR} (${GITHUB_EVENT_NAME})"
+        curl -v -F "chat_id=${{ inputs.telegram-chat-id }}" \
+          -F text="$NOTIFIER_MSG" \
+          https://api.telegram.org/bot${{ inputs.telegram-bot-token }}/sendMessage
+
     - name: "Setup build environment"
       shell: bash
       run: |
