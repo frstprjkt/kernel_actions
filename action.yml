@@ -74,7 +74,7 @@ inputs:
   package-name:
     description: "Base name for the output package (without extension)(used for both AnyKernel3 and boot image packaging)"
     required: false
-    default: "anykernel3.zip"
+    default: "kernel-built-package"
 
   bootimg:
     description: "Package the built kernel as a boot image"
