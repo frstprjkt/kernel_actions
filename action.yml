@@ -4,78 +4,103 @@ author: "frstprjkt"
 
 inputs:
   debug:
+    description: "Enable debug mode for verbose output"
     required: false
     default: "false"
 
   kernel-url:
+    description: "Git URL of the kernel source (required)"
     required: true
   kernel-branch:
+    description: "Kernel source branch to build"
     required: false
     default: "master"
   depth:
+    description: "Git clone depth for kernel source (enabled by default)"
     required: false
     default: "1"
 
   arch:
+    description: "Target architecture (required)"
     required: false
     default: "arm64"
   defconfig:
+    description: "Kernel defconfig to use for the build (required)"
     required: true
   extra-args:
+    description: "Extra arguments to pass to the make command (optional)"
     required: false
   build-number:
+    description: "Custom build number to embed in the kernel version (optional)"
     required: false
 
   ksu:
+    description: "Enable KernelSU integration"
     required: false
     default: "false"
   ksu-url:
+    description: "Git URL of the KernelSU repository"
     required: false
     default: "https://github.com/tiann/KernelSU"
   ksu-version:
+    description: "KernelSU version to integrate (branch, tag, or commit)"
     required: false
     default: "main"
 
   aosp-clang:
+    description: "Use AOSP clang toolchain for building"
     required: false
     default: "true"
   aosp-clang-version:
+    description: "AOSP clang version to use (e.g. r563880c)"
     required: false
     default: "r563880c"
   aosp-gcc:
+    description: "Use AOSP GCC toolchain for building"
     required: false
     default: "false"
 
   anykernel3:
+    description: "Package the built kernel using AnyKernel3"
     required: false
     default: "false"
   anykernel3-url:
+    description: "Git URL of the AnyKernel3 repository (needed if anykernel3 is true)"
     required: false
   anykernel3-branch:
+    description: "AnyKernel3 branch to use for packaging"
     required: false
     default: "master"
   package-name:
+    description: "Base name for the output package (without extension)(used for both AnyKernel3 and boot image packaging)"
     required: false
     default: "anykernel3.zip"
 
   bootimg:
+    description: "Package the built kernel as a boot image"
     required: false
     default: "false"
   bootimg-url:
+    description: "Stock boot image URL to use for repacking with the new kernel (required if bootimg is true)"
     required: false
 
   artifact-upload:
+    description: "Upload the built kernel as an artifact in GitHub Actions"
     required: false
     default: "false"
 
   telegram-upload:
+    description: "Upload the built kernel to Telegram"
     required: false
     default: "false"
   telegram-bot-token:
+    description: "Telegram bot token for uploading the kernel (required if telegram-upload is true)"
     required: false
   telegram-chat-id:
+    description: "Telegram chat ID to send the kernel to (required if telegram-upload is true)"
     required: false
   telegram-caption:
+    description: "Caption to use when uploading the kernel to Telegram (optional)"
     required: false
 
 runs:
