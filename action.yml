@@ -3,6 +3,10 @@ description: "An action to build Android kernel using GitHub Actions"
 author: "frstprjkt"
 
 inputs:
+  debug:
+    required: false
+    default: "false"
+
   kernel-url:
     required: true
   kernel-branch:
@@ -77,63 +81,93 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Prepare run_cmd helper"
+      shell: bash
+      run: |
+        echo "DEBUG=${{ inputs.debug }}" >> "$GITHUB_ENV"
+
+        cat <<'EOF' > $HOME/run_cmd.sh
+        set -e
+        run_cmd() {
+          if [[ "$DEBUG" == "true" ]]; then
+            eval "$@"
+          else
+            eval "$@" >/dev/null 2>&1
+          fi
+        }
+        EOF
+
     - name: "Send build start notification to Telegram"
       if: ${{ inputs.telegram-upload == 'true' }}
       shell: bash
       run: |
+        source $HOME/run_cmd.sh
+
         echo "Sending build start notification to Telegram..."
         NOTIFIER_MSG="${GITHUB_REPOSITORY}/${GITHUB_WORKFLOW} triggered by ${GITHUB_TRIGGERING_ACTOR} (${GITHUB_EVENT_NAME})"
-        curl -v -F "chat_id=${{ inputs.telegram-chat-id }}" \
-          -F text="$NOTIFIER_MSG" \
-          https://api.telegram.org/bot${{ inputs.telegram-bot-token }}/sendMessage
+        run_cmd "curl -v -F \"chat_id=${{ inputs.telegram-chat-id }}\" \
+                  -F text=\"$NOTIFIER_MSG\" \
+                  https://api.telegram.org/bot${{ inputs.telegram-bot-token }}/sendMessage"
 
     - name: "Setup build environment"
       shell: bash
       run: |
+        source $HOME/run_cmd.sh
+
+        echo "Setting up build environment..."
         echo "KERNEL_DIR=$HOME/kernel/${{ inputs.arch }}" >> $GITHUB_ENV
+
         if [[ "${{ inputs.bootimg }}" == "true" ]]; then
           echo "PACKAGE_NAME=image-${{ inputs.package-name }}" >> $GITHUB_ENV
         else
           echo "PACKAGE_NAME=${{ inputs.package-name }}" >> $GITHUB_ENV
         fi
-        sudo apt-get update
-        sudo apt-get install -y \
+
+        run_cmd "sudo apt-get update"
+        run_cmd "sudo apt-get install -y \
           binutils git make bc bison openssl curl zip kmod cpio flex libelf-dev \
           libssl-dev libtfm-dev libc6-dev device-tree-compiler ca-certificates \
-          python3 xz-utils aria2 build-essential
+          python3 xz-utils aria2 build-essential"
 
     - name: "Download AOSP Clang"
       if: ${{ inputs.aosp-clang == 'true' }}
       shell: bash
       run: |
-        echo "Downloading AOSP Clang version ${{ inputs.aosp-clang-version }}..."
+        source $HOME/run_cmd.sh
+
         TOOLCHAIN_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/mirror-goog-main-llvm-toolchain-source/clang-${{ inputs.aosp-clang-version }}.tar.gz"
-        aria2c -x 16 -s 16 -k 1M $TOOLCHAIN_URL -o clang.tar.gz
+        echo "Downloading AOSP clang version ${{ inputs.aosp-clang-version }}..."
         mkdir -p $HOME/toolchains/clang-${{ inputs.aosp-clang-version }}
-        tar -xzf clang.tar.gz -C $HOME/toolchains/clang-${{ inputs.aosp-clang-version }}
+        run_cmd "aria2c -x 16 -s 16 -k 1M $TOOLCHAIN_URL -o clang.tar.gz"
+        run_cmd "tar -xzvf clang.tar.gz -C $HOME/toolchains/clang-${{ inputs.aosp-clang-version }}"
         rm clang.tar.gz
 
     - name: "Download AOSP GCC"
       if: ${{ inputs.aosp-gcc == 'true' }}
       shell: bash
       run: |
-        echo "Downloading AOSP GCC toolchain..."
+        source $HOME/run_cmd.sh
+
         GCC64_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/heads/android-msm-redbull-4.19-android14-qpr3.tar.gz"
-        GCC32_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/heads/android-msm-redbull-4.19-android14-qpr3.tar.gz"
-        aria2c -x 16 -s 16 -k 1M $GCC64_URL -o aarch64-gcc.tar.gz
+        echo "Downloading AOSP GCC aarch64 version..."
         mkdir -p $HOME/toolchains/gcc-aarch64
-        tar -xzf aarch64-gcc.tar.gz -C $HOME/toolchains/gcc-aarch64
-        aria2c -x 16 -s 16 -k 1M $GCC32_URL -o arm32-gcc.tar.gz
+        run_cmd "aria2c -x 16 -s 16 -k 1M $GCC64_URL -o aarch64-gcc.tar.gz"
+        run_cmd "tar -xzvf aarch64-gcc.tar.gz -C $HOME/toolchains/gcc-aarch64"
+
+        GCC32_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/heads/android-msm-redbull-4.19-android14-qpr3.tar.gz"
+        echo "Downloading AOSP GCC arm32 version..."
         mkdir -p $HOME/toolchains/gcc-arm32
-        tar -xzf arm32-gcc.tar.gz -C $HOME/toolchains/gcc-arm32
+        run_cmd "aria2c -x 16 -s 16 -k 1M $GCC32_URL -o arm32-gcc.tar.gz"
+        run_cmd "tar -xzvf arm32-gcc.tar.gz -C $HOME/toolchains/gcc-arm32"
         rm aarch64-gcc.tar.gz arm32-gcc.tar.gz
 
     - name: "Downloading kernel source"
       shell: bash
       run: |
-        echo "Cloning kernel source from ${{ inputs.kernel-url }} (branch: ${{ inputs.kernel-branch }}, depth: ${{ inputs.depth }})..."
-        git clone --depth=${{ inputs.depth }} --branch=${{ inputs.kernel-branch }} ${{ inputs.kernel-url }} $KERNEL_DIR
-        echo "Kernel source cloned to '$KERNEL_DIR' directory."
+        source $HOME/run_cmd.sh
+
+        echo "Cloning kernel source (branch: ${{ inputs.kernel-branch }}, depth: ${{ inputs.depth }})..."
+        run_cmd "git clone --depth=${{ inputs.depth }} --branch=${{ inputs.kernel-branch }} ${{ inputs.kernel-url }} $KERNEL_DIR"
 
         echo "Extracting kernel version information..."
         echo "KERNEL_VERSION=$(grep -E '^VERSION =' "$KERNEL_DIR/Makefile" | awk '{print $3}')" >> $GITHUB_ENV
@@ -145,11 +179,13 @@ runs:
       if: ${{ inputs.ksu == 'true' }}
       shell: bash
       run: |
-        echo "Integrating KernelSU into the kernel source tree..."
+        source $HOME/run_cmd.sh
+
+        echo "Configuring KernelSU integration..."
         cd $KERNEL_DIR
-        curl -LSs "${{ inputs.ksu-url }}/raw/${{ inputs.ksu-version }}/kernel/setup.sh" | bash -s ${{ inputs.ksu-version }}
-        cd ../../..
-        echo "KernelSU integrated into the kernel source."
+        run_cmd "curl -LSs \"${{ inputs.ksu-url }}/raw/${{ inputs.ksu-version }}/kernel/setup.sh\" | bash -s ${{ inputs.ksu-version }}"
+        cd -
+
         if [ $KERNEL_VERSION -lt 5 ]; then
           echo "Enabling KernelSU hooks..."
           echo "CONFIG_KSU_TAMPER_SYSCALL_TABLE=y" > $KERNEL_DIR/arch/${{ inputs.arch }}/configs/kernelsu.config
@@ -160,7 +196,8 @@ runs:
     - name: "Building Kernel"
       shell: bash
       run: |
-        set -e
+        source $HOME/run_cmd.sh
+
         echo "Kernel Version: "$KERNEL_VERSION.$KERNEL_PATCHLEVEL.$KERNEL_SUBLEVEL""$KERNEL_EXTRAVERSION""
 
         KERNEL_DEFCONFIG="${{ inputs.defconfig }}"
@@ -197,20 +234,20 @@ runs:
         mkdir out
         echo "${GITHUB_RUN_NUMBER}" > out/.version
         echo "Starting kernel build for architecture: ${{ inputs.arch }} with defconfig: $KERNEL_DEFCONFIG"
-        make -j$(nproc) ARCH=${{ inputs.arch }} O=out $KERNEL_DEFCONFIG ${{ inputs.extra-args }} all CROSS_COMPILE=$BUILD_CROSS_COMPILE CROSS_COMPILE_ARM32=$BUILD_CROSS_COMPILE_ARM32 CLANG_TRIPLE=$BUILD_CLANG_TRIPLE
+        run_cmd "make -j$(nproc) ARCH=${{ inputs.arch }} O=out $KERNEL_DEFCONFIG ${{ inputs.extra-args }} all CROSS_COMPILE=$BUILD_CROSS_COMPILE CROSS_COMPILE_ARM32=$BUILD_CROSS_COMPILE_ARM32 CLANG_TRIPLE=$BUILD_CLANG_TRIPLE"
         echo "Kernel build completed."
     
     - name: "Packaging Kernel with AnyKernel3"
       if: ${{ inputs.anykernel3 == 'true' }}
       shell: bash
       run: |
-        set -e
+        source $HOME/run_cmd.sh
+
         ANYKERNEL_DIR="$HOME/anykernel3"
+        echo "Cloning AnyKernel3 (branch: ${{ inputs.anykernel3-branch }})..."
+        run_cmd "git clone --depth=1 --branch=${{ inputs.anykernel3-branch }} ${{ inputs.anykernel3-url }} $ANYKERNEL_DIR"
 
-        echo "Cloning AnyKernel3 from ${{ inputs.anykernel3-url }} (branch: ${{ inputs.anykernel3-branch }})..."
-        git clone --depth=1 --branch=${{ inputs.anykernel3-branch }} ${{ inputs.anykernel3-url }} $ANYKERNEL_DIR
-
-        echo "Clean AnyKernel3 directory..."
+        echo "Cleaning AnyKernel3 directory..."
         rm -rf $ANYKERNEL_DIR/.git $ANYKERNEL_DIR/*.github
         find . -type f -name "placeholder" -exec sh -c 'rm -rf "$(dirname "$1")"' _ {} \;
 
@@ -226,7 +263,7 @@ runs:
 
         if [[ "${{ inputs.telegram-upload }}" == "true" ]]; then
           cd $ANYKERNEL_DIR
-          zip -r9q $HOME/${{ env.PACKAGE_NAME }}.zip .
+          run_cmd "zip -r9 $HOME/${{ env.PACKAGE_NAME }}.zip ."
           echo "OUTPUT_FILE=$HOME/${{ env.PACKAGE_NAME }}.zip" >> $GITHUB_ENV
           echo "Kernel packaged successfully. Output file: $HOME/${{ env.PACKAGE_NAME }}.zip"
         elif [[ "${{ inputs.artifact-upload }}" == "true" ]]; then
@@ -238,17 +275,17 @@ runs:
       if: ${{ inputs.bootimg == 'true' }}
       shell: bash
       run: |
-        set -e
+        source $HOME/run_cmd.sh
 
         echo "Downloading required tools for boot image packaging..."
         mkdir $HOME/working
         cd $HOME/working
-        wget https://raw.githubusercontent.com/frstprjkt/kernel_actions/refs/heads/main/bin/magiskboot -O magiskboot
+        run_cmd "wget https://raw.githubusercontent.com/frstprjkt/kernel_actions/refs/heads/main/bin/magiskboot -O magiskboot"
         chmod +x magiskboot
 
         echo "Unpacking stock boot image..."
-        wget ${{ inputs.bootimg-url }} -O boot.orig.img
-        ./magiskboot unpack boot.orig.img
+        run_cmd "wget ${{ inputs.bootimg-url }} -O boot.orig.img"
+        run_cmd "./magiskboot unpack boot.orig.img"
 
         if [ -f "$KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/Image" ]; then
           echo "Replacing kernel in the unpacked boot image..."
@@ -262,7 +299,7 @@ runs:
 
         echo "Repacking boot image with the new kernel..."
         mkdir out_img
-        ./magiskboot repack boot.orig.img out_img/boot.img
+        run_cmd "./magiskboot repack boot.orig.img out_img/boot.img"
         echo "Boot image repackaged successfully."
 
         if [ -f "$KERNEL_DIR/out/arch/${{ inputs.arch }}/boot/dtbo.img" ]; then
@@ -272,7 +309,7 @@ runs:
 
         if [[ "${{ inputs.telegram-upload }}" == "true" ]]; then
           cd out_img
-          zip -r9q $HOME/${{ env.PACKAGE_NAME }}.zip .
+          run_cmd "zip -r9 $HOME/${{ env.PACKAGE_NAME }}.zip ."
           echo "OUTPUT_FILE=$HOME/${{ env.PACKAGE_NAME }}.zip" >> $GITHUB_ENV
           echo "Kernel packaged successfully. Output file: $HOME/${{ env.PACKAGE_NAME }}.zip"
         elif [[ "${{ inputs.artifact-upload }}" == "true" ]]; then
@@ -292,7 +329,9 @@ runs:
       if: ${{ inputs.telegram-upload == 'true' }}
       shell: bash
       run: |
-        curl -v -F "chat_id=${{ inputs.telegram-chat-id }}" \
+        source $HOME/run_cmd.sh
+
+        run_cmd "curl -v -F \"chat_id=${{ inputs.telegram-chat-id }}\" \
           -F document=@${{ env.OUTPUT_FILE }} \
-          -F caption="${{ inputs.telegram-caption }}" \
-          https://api.telegram.org/bot${{ inputs.telegram-bot-token }}/sendDocument
+          -F caption=\"${{ inputs.telegram-caption }}\" \
+          https://api.telegram.org/bot${{ inputs.telegram-bot-token }}/sendDocument"
